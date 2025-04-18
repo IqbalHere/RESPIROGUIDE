@@ -1,0 +1,206 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+/* --- Variables --- */
+:root {
+    --primary-color: #0077b6; /* Vibrant Blue */
+    --secondary-color: #00b4d8;
+    --background-color: #edf6f9; /* Light blue-grey background */
+    --card-background: #ffffff;
+    --text-color: #333;
+    --heading-color: #023e8a;
+    --border-color: #ade8f4;
+    --button-hover: #00507a;
+    --success-bg: #e0fbfc;
+    --success-border: #94d2bd;
+    --success-text: #005f73;
+    --error-bg: #f8d7da;
+    --error-border: #f5c6cb;
+    --error-text: #721c24;
+    --box-shadow: 0 6px 15px rgba(0, 119, 182, 0.1);
+    --input-focus-shadow: 0 0 0 3px rgba(0, 119, 182, 0.1);
+}
+
+/* --- Base Styles --- */
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    line-height: 1.7; /* Slightly increased line height */
+    margin: 0;
+    padding: 20px;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 750px; /* Wider container */
+    margin: 20px auto;
+    padding: 0 15px; /* Add padding for smaller screens */
+    box-sizing: border-box;
+}
+
+/* --- Typography --- */
+h1 {
+    text-align: center;
+    color: var(--heading-color);
+    margin-bottom: 15px;
+    font-weight: 700;
+    font-size: 2.2em; /* Larger heading */
+}
+
+p {
+    text-align: center;
+    margin-bottom: 30px; /* Increased margin */
+    color: #555;
+    font-size: 1.05em;
+}
+
+p strong {
+    color: var(--primary-color);
+}
+
+/* --- Form Styling --- */
+form#prediction-form {
+    background: var(--card-background);
+    padding: 35px 40px; /* Increased padding */
+    border-radius: 15px; /* More rounded corners */
+    box-shadow: var(--box-shadow);
+    border: 1px solid var(--border-color);
+    transition: box-shadow 0.3s ease-in-out;
+}
+
+form#prediction-form:hover {
+     box-shadow: 0 8px 20px rgba(0, 119, 182, 0.15); /* Slightly more shadow on hover */
+}
+
+.form-group {
+    margin-bottom: 22px; /* Increased spacing */
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 700;
+    color: var(--primary-color);
+    font-size: 1em;
+}
+
+.form-group input[type="number"],
+.form-group select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px; /* More rounded inputs */
+    box-sizing: border-box;
+    font-size: 1em;
+    background-color: #fcfdff; /* Slightly off-white input background */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-group input::placeholder {
+    color: #aaa;
+    font-style: italic;
+}
+
+.form-group input[type="number"]:focus,
+.form-group select:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: var(--input-focus-shadow);
+    background-color: #fff;
+}
+
+/* --- Button Styling --- */
+button[type="submit"] {
+    display: block;
+    width: 100%;
+    padding: 15px; /* Larger padding */
+    background: linear-gradient(90deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.15em; /* Slightly larger font */
+    font-weight: 700;
+    transition: all 0.3s ease; /* Smooth transition for all properties */
+    margin-top: 15px; 
+    letter-spacing: 0.5px;
+}
+
+button[type="submit"]:hover {
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--button-hover) 100%);
+    transform: translateY(-3px); /* Slightly more lift */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+button[type="submit"]:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* --- Result Container --- */
+.result-container {
+    margin-top: 35px;
+    padding: 25px 30px;
+    background: var(--success-bg);
+    border: 1px solid var(--success-border);
+    border-left: 5px solid var(--success-text); /* Add a colored left border */
+    border-radius: 8px;
+    text-align: left; /* Align text left */
+    font-size: 1.1em;
+    color: var(--success-text);
+    display: none; /* Initially hidden */
+    box-shadow: 0 4px 8px rgba(0, 95, 115, 0.1);
+    line-height: 1.8; /* Improve readability of multi-line result */
+}
+
+.result-container strong {
+    display: block; /* Make title block level */
+    margin-bottom: 10px; /* Space below title */
+    font-size: 1.2em;
+}
+
+.result-container.error {
+    background-color: var(--error-bg);
+    color: var(--error-text);
+    border-color: var(--error-border);
+    border-left: 5px solid var(--error-text);
+    box-shadow: 0 4px 8px rgba(114, 28, 36, 0.1);
+}
+
+.result-container.error strong {
+     color: var(--error-text); 
+}
+
+/* --- Responsive --- */
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+    .container {
+        padding: 0 10px;
+    }
+    form#prediction-form {
+        padding: 25px 20px;
+    }
+    h1 {
+        font-size: 1.9em;
+    }
+    p {
+        font-size: 1em;
+    }
+    button[type="submit"] {
+        font-size: 1.1em;
+        padding: 14px;
+    }
+    .result-container {
+        padding: 20px 25px;
+    }
+} 

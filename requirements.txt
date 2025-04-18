@@ -1,0 +1,6 @@
+Flask
+pandas
+scikit-learn
+joblib
+numpy
+openpyxl # Required by pandas to read .xlsx files 

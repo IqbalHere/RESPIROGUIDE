@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RESPIROGUIDE: COPD Risk Prediction</title>
+    <!-- Link to the CSS file -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <h1>COPD Risk Prediction</h1>
+    <p>Enter the patient information below:</p>
+
+    <!-- Input Form -->
+    <form id="prediction-form">
+        
+        <div class="form-group">
+            <label for="Age">Age:</label>
+            <input type="number" id="Age" name="Age" min="10" max="100" step="1" placeholder="e.g., 55" required>
+        </div>
+
+        <div class="form-group">
+            <label for="Gender">Gender:</label> <!-- Assuming 1 for Male, 0 for Female based on typical encoding -->
+            <select id="Gender" name="Gender" required>
+                <option value="">--Select--</option>
+                <option value="1">Male</option> 
+                <option value="0">Female</option> 
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="Smoking_History">Smoking History:</label> <!-- Assuming 1 for Yes, 0 for No -->
+            <select id="Smoking_History" name="Smoking_History" required>
+                <option value="">--Select--</option>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="Air_Pollution_Exposure">Air Pollution Exposure (scale 0-10):</label>
+            <input type="number" id="Air_Pollution_Exposure" name="Air_Pollution_Exposure" min="0" max="10" step="1" placeholder="e.g., 5" required>
+        </div>
+
+        <div class="form-group">
+            <label for="Family_History">Family History of COPD:</label> <!-- Assuming 1 for Yes, 0 for No -->
+            <select id="Family_History" name="Family_History" required>
+                <option value="">--Select--</option>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="Chronic_Cough">Chronic Cough:</label> <!-- Assuming 1 for Yes, 0 for No -->
+            <select id="Chronic_Cough" name="Chronic_Cough" required>
+                <option value="">--Select--</option>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="Shortness_of_Breath">Shortness of Breath:</label> <!-- Assuming 1 for Yes, 0 for No -->
+            <select id="Shortness_of_Breath" name="Shortness_of_Breath" required>
+                <option value="">--Select--</option>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="Wheezing">Wheezing:</label> <!-- Assuming 1 for Yes, 0 for No -->
+            <select id="Wheezing" name="Wheezing" required>
+                <option value="">--Select--</option>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="Sputum_Production">Sputum Production:</label> <!-- Assuming 1 for Yes, 0 for No -->
+            <select id="Sputum_Production" name="Sputum_Production" required>
+                <option value="">--Select--</option>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="BMI">BMI (Body Mass Index):</label>
+            <input type="number" id="BMI" name="BMI" min="10.0" max="40.0" step="0.01" placeholder="e.g., 24.5" required>
+        </div>
+
+        <div class="form-group">
+            <label for="Physical_Activity">Physical Activity Level:</label> <!-- Assuming numerical scale, e.g., 0=Low, 1=Medium, 2=High? -->
+            <input type="number" id="Physical_Activity" name="Physical_Activity" min="0" step="1" placeholder="Enter numerical value" required>
+            <!-- Or use a select if levels are known: 
+            <select id="Physical_Activity" name="Physical_Activity" required>
+                <option value="">--Select--</option>
+                <option value="0">Low</option>
+                <option value="1">Medium</option>
+                <option value="2">High</option> 
+            </select> -->
+        </div>
+
+        <div class="form-group">
+            <label for="Occupational_Exposure">Occupational Exposure:</label> <!-- Assuming 1 for Yes, 0 for No -->
+            <select id="Occupational_Exposure" name="Occupational_Exposure" required>
+                <option value="">--Select--</option>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="Respiratory_Infections">History of Respiratory Infections:</label> <!-- Assuming 1 for Yes, 0 for No -->
+            <select id="Respiratory_Infections" name="Respiratory_Infections" required>
+                <option value="">--Select--</option>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="Allergies">Allergies:</label> <!-- Assuming 1 for Yes, 0 for No -->
+            <select id="Allergies" name="Allergies" required>
+                <option value="">--Select--</option>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="Medication_Use">Regular Medication Use (for respiratory issues):</label> <!-- Assuming 1 for Yes, 0 for No -->
+            <select id="Medication_Use" name="Medication_Use" required>
+                <option value="">--Select--</option>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+            </select>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit">Predict COPD Risk</button>
+    </form>
+
+    <!-- Div to display the prediction result -->
+    <div id="result" class="result-container"></div>
+
+    <!-- Link to the JavaScript file -->
+    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
+</div> <!-- Close container -->
+</body>
+</html> 
