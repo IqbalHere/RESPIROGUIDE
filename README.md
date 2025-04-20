@@ -4,6 +4,14 @@ RESPIROGUIDE is a web application built with Flask that predicts the likelihood 
 
 The application takes 15 patient characteristics as input and predicts the COPD diagnosis (Positive/Negative) along with an estimated probability.
 
+## Performance Optimizations
+
+This application has been optimized to run on lower-performance computers with:
+- Simplified feature engineering that focuses on the most important predictors
+- Lightweight model training with optimized hyperparameter search
+- Reduced computational requirements for both training and prediction
+- Clinical validation overrides to ensure medically sound predictions
+
 ## Setup and Running Locally
 
 1.  **Prerequisites:**
@@ -78,20 +86,16 @@ This is particularly useful when making changes to the Flask routes or templates
 
 The application uses a combination of factors to determine COPD risk:
 
-1. **Probability Assessment**: The model calculates a probability score (0-100%) for COPD risk based on all input features.
+1. **Machine Learning Model**: The RandomForest model calculates a probability score (0-100%) for COPD risk based on all input features.
 
-2. **Decision Criteria**: 
-   - If the calculated probability is ≥40%, the prediction status is set to "Positive" (Suffering from COPD)
-   - If the patient has a majority of respiratory symptoms (at least 3 out of 6 key symptoms), the prediction may also be "Positive" even with a lower probability score
-   - Otherwise, the prediction status is "Negative" (Not Suffering from COPD)
+2. **Clinical Validation Override**: 
+   - If a patient has NO symptoms AND NO risk factors, the prediction is automatically set to "Negative" regardless of the model output
+   - If a patient has 3+ symptoms but the model predicts "Negative" with low confidence, the prediction is overridden to "Positive"
+   - These clinical overrides ensure medically sound predictions in edge cases
 
-3. **Key symptoms** considered in the assessment:
-   - Chronic Cough
-   - Shortness of Breath
-   - Wheezing
-   - Sputum Production
-   - Respiratory Infections
-   - Allergies
+3. **Decision Factors**: The model considers both risk factors and symptoms:
+   - **Risk Factors**: Smoking History, Air Pollution Exposure, Family History, Occupational Exposure
+   - **Key Symptoms**: Chronic Cough, Shortness of Breath, Wheezing, Sputum Production, Respiratory Infections, Allergies
 
-This multi-factor approach helps ensure that both the statistical probability and actual clinical symptoms are considered in the final prediction.
+This hybrid approach combines the statistical power of machine learning with clinical knowledge to provide more accurate predictions.
 

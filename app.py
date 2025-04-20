@@ -7,10 +7,12 @@ import os
 app = Flask(__name__)
 
 MODEL_FILE = 'lung_disease_model.plk'
-SCALER_FILE = 'scaler.plk' # Scaler file path
+SCALER_FILE = 'scaler.plk' 
+FEATURE_COLS_FILE = 'feature_cols.pkl'
 
 model = None
-scaler = None # Initialize scaler
+scaler = None
+feature_cols = None
 
 if os.path.exists(MODEL_FILE):
     try:
@@ -28,21 +30,38 @@ if model is not None and os.path.exists(SCALER_FILE):
         print(f"Scaler '{SCALER_FILE}' loaded successfully.")
     except Exception as e:
         print(f"Error loading scaler '{SCALER_FILE}': {e}")
-        model = None # Invalidate model if scaler fails to load
+        model = None
 else:
      if model is not None:
          print(f"Error: Scaler file '{SCALER_FILE}' not found. Model requires scaler.")
-         model = None # Invalidate model if scaler is missing
+         model = None
+
+# Load feature columns
+if os.path.exists(FEATURE_COLS_FILE):
+    try:
+        feature_cols = joblib.load(FEATURE_COLS_FILE)
+        print(f"Feature columns loaded successfully from '{FEATURE_COLS_FILE}'")
+    except Exception as e:
+        print(f"Error loading feature columns from '{FEATURE_COLS_FILE}': {e}")
+        feature_cols = None
+else:
+    print(f"Feature columns file '{FEATURE_COLS_FILE}' not found. Using default feature list.")
+    feature_cols = None
 
 if model is None:
      print("Application will not be able to predict. Please run generate_model.py")
 
-feature_order = [
+# Base features received from the form
+base_feature_order = [
     'Age', 'Gender', 'Smoking_History', 'Air_Pollution_Exposure', 
     'Family_History', 'Chronic_Cough', 'Shortness_of_Breath', 'Wheezing', 
     'Sputum_Production', 'BMI', 'Physical_Activity', 'Occupational_Exposure', 
     'Respiratory_Infections', 'Allergies', 'Medication_Use'
 ]
+
+# Define risk factors and symptoms for clinical validation
+risk_factors = ['Smoking_History', 'Air_Pollution_Exposure', 'Family_History', 'Occupational_Exposure']
+symptoms = ['Chronic_Cough', 'Shortness_of_Breath', 'Wheezing', 'Sputum_Production', 'Respiratory_Infections', 'Allergies']
 
 @app.route('/')
 def home():
@@ -50,15 +69,16 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if model is None or scaler is None: # Check both model and scaler
+    if model is None or scaler is None:
         return jsonify({'error': f"Model or Scaler not loaded. Cannot predict. Please check server logs and run generate_model.py."}), 500
 
     try:
         form_data = request.form.to_dict()
         print(f"Received form data: {form_data}")
 
-        input_features = []
-        for feature in feature_order:
+        # Extract base features from form
+        base_features = {}
+        for feature in base_feature_order:
             value = form_data.get(feature)
             if value is None or value == '': 
                  if feature in form_data:
@@ -66,85 +86,85 @@ def predict():
                  else:
                       return jsonify({'error': f'Missing input value for {feature}'}), 400
             try:
-                 input_features.append(float(value))
+                 base_features[feature] = float(value)
             except ValueError:
                 return jsonify({'error': f'Invalid input value for {feature}: \'{value}\'. Please enter a valid number or selection.'}), 400
-
-        # Reshape features for scaler
-        features_array = np.array(input_features).reshape(1, -1)
         
-        # Scale the input features using the loaded scaler
-        print(f"Features before scaling: {features_array}")
+        # Create DataFrame with base features
+        input_df = pd.DataFrame([base_features])
+        
+        # --- Clinical validation check ---
+        # Count risk factors and symptoms
+        risk_factor_count = sum(1 for factor in risk_factors if factor in input_df.columns and input_df[factor].iloc[0] == 1)
+        symptom_count = sum(1 for symptom in symptoms if symptom in input_df.columns and input_df[symptom].iloc[0] == 1)
+        
+        # --- Apply only the lightweight feature engineering ---
+        # Calculate symptom score
+        symptom_cols = ['Chronic_Cough', 'Shortness_of_Breath', 'Wheezing', 
+                       'Sputum_Production', 'Respiratory_Infections', 'Allergies']
+        input_df['Symptom_Score'] = input_df[symptom_cols].sum(axis=1)
+        
+        # Add the single interaction term
+        input_df['Smoking_Air_Pollution'] = input_df['Smoking_History'] * input_df['Air_Pollution_Exposure']
+        
+        # Convert categorical features
+        input_df = pd.get_dummies(input_df, columns=['Gender'], drop_first=True)
+        
+        # Ensure correct columns if feature_cols is loaded
+        if feature_cols is not None:
+            # Add missing columns with zeros
+            for col in feature_cols:
+                if col not in input_df.columns:
+                    input_df[col] = 0
+            
+            # Reorder columns to match training data
+            input_df = input_df[feature_cols]
+        
+        # Reshape and scale features
+        features_array = input_df.values
         scaled_features = scaler.transform(features_array)
-        print(f"Features after scaling: {scaled_features}")
-
-        # --- Get Probability --- 
-        probability_percentage_text = 'N/A' 
-        risk_proba = None # Initialize risk_proba
-        prediction_fallback = None # For case where predict_proba fails
-
-        if 'predict_proba' in dir(model):
-            try:
-                probability = model.predict_proba(scaled_features)[0][1]
-                risk_proba = probability
-                probability_percentage_text = f"{risk_proba * 100:.2f}%"
-                print(f"DEBUG: Probability from predict_proba: {probability}")
-            except:
-                print("DEBUG: predict_proba failed, using predict method")
-                prediction_fallback = model.predict(scaled_features)[0]
-                print(f"Direct Prediction: {prediction_fallback}")
-        else:
-            print("DEBUG: predict_proba not available, using predict method")
-            prediction_fallback = model.predict(scaled_features)[0]
-            print(f"Direct Prediction: {prediction_fallback}")
-
-        # --- Determine Final Prediction Status --- 
-        if risk_proba is not None:
-            # Count how many symptomatic features have value = 1 (Yes)
-            symptom_features = ["Chronic_Cough", "Shortness_of_Breath", "Wheezing", 
-                               "Sputum_Production", "Respiratory_Infections", "Allergies"]
-            symptom_indices = [feature_order.index(feature) for feature in symptom_features 
-                              if feature in feature_order]
-            symptom_count = sum(1 for i in symptom_indices if input_features[i] == 1)
-            total_symptoms = len(symptom_indices)
-            
-            print(f"DEBUG: Risk probability: {risk_proba}")
-            print(f"DEBUG: Symptom count: {symptom_count} out of {total_symptoms}")
-            print(f"DEBUG: Threshold check: risk_proba >= 0.4 = {risk_proba >= 0.4}")
-            print(f"DEBUG: Symptom check: symptom_count >= total_symptoms/2 and >= 3 = {symptom_count >= total_symptoms/2 and symptom_count >= 3}")
-            
-            # New logic: Predict Positive if probability >= 40% OR majority of symptoms are "Yes"
-            if risk_proba >= 0.4 or (symptom_count >= total_symptoms / 2 and symptom_count >= 3):
-                prediction_text_output = "Positive"
-                print(f"DEBUG: Setting status to Positive. Prob: {risk_proba}, Threshold: 0.4, Symptom count: {symptom_count}/{total_symptoms}")
-            else:
-                prediction_text_output = "Negative"
-                print(f"DEBUG: Setting status to Negative. Prob: {risk_proba}, Threshold: 0.4, Symptom count: {symptom_count}/{total_symptoms}")
-        elif prediction_fallback is not None:
-             # Use direct predict output if predict_proba failed
-             prediction_text_output = "Positive" if prediction_fallback == 1 else "Negative"
-             print(f"Using Fallback Direct Prediction: Result='{prediction_text_output}'")
-        else:
-            # If both failed
-            prediction_text_output = "Error"
-            print("Error: Could not determine prediction status.")
-
-        print(f"DEBUG: Final prediction_status: '{prediction_text_output}'")
-        print(f"DEBUG: Final probability: {risk_proba}")
-        print(f"DEBUG: Final probability_text: {probability_percentage_text}")
         
-        # --- Return JSON Response --- 
+        # Get model prediction and probability
+        prediction = model.predict(scaled_features)[0]
+        probability = model.predict_proba(scaled_features)[0][1]
+        
+        # --- Clinical override for edge cases ---
+        # If no symptoms and no risk factors, override to negative
+        if symptom_count == 0 and risk_factor_count == 0:
+            prediction = 0
+            probability = max(0.05, min(probability, 0.15))  # Cap probability between 5-15%
+            clinical_override = True
+        # If many symptoms but model says negative with very low probability
+        elif symptom_count >= 3 and prediction == 0 and probability < 0.2:
+            prediction = 1
+            probability = max(0.6, probability)
+            clinical_override = True
+        else:
+            clinical_override = False
+            
+        # Format output
+        prediction_text = "Positive" if prediction == 1 else "Negative"
+        probability_percentage_text = f"{probability * 100:.2f}%"
+        
+        # Simple confidence level
+        confidence = "High" if probability > 0.75 or probability < 0.25 else "Medium"
+        
+        # Return response
         response_data = {
-            'prediction_status': prediction_text_output, 
-            'probability': risk_proba,
-            'probability_text': probability_percentage_text 
+            'prediction_status': prediction_text,
+            'probability': probability,
+            'probability_text': probability_percentage_text,
+            'confidence': confidence,
+            'symptom_count': symptom_count,
+            'risk_factor_count': risk_factor_count,
+            'clinical_override': clinical_override
         }
-        print(f"DEBUG: Final response: {response_data}")
+        
         return jsonify(response_data)
 
     except Exception as e:
         import traceback
-        print(f"Error during prediction processing: {e}")
+        print(f"Error during prediction: {e}")
         traceback.print_exc()
         return jsonify({'error': 'An unexpected error occurred during prediction.'}), 500
 

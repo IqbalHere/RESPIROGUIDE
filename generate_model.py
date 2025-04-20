@@ -1,7 +1,7 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, f1_score
+from sklearn.metrics import accuracy_score, classification_report, f1_score, roc_auc_score
 from sklearn.preprocessing import StandardScaler
 import joblib
 import os
@@ -9,7 +9,6 @@ import numpy as np
 import time
 
 # --- Configuration --- 
-# Reverting to use ONLY the compatible dataset
 DATA_FILES = ['copd_15_features_1000_rows.xlsx'] 
 MODEL_FILE = 'lung_disease_model.plk'
 SCALER_FILE = 'scaler.plk'
@@ -17,7 +16,7 @@ SCALER_FILE = 'scaler.plk'
 # Target column from the compatible dataset
 target_col = 'COPD_Diagnosis' 
 
-# Columns to drop (if any - likely none needed for this file)
+# Columns to drop (if any)
 cols_to_drop = [] 
 # --- End Configuration --- 
 
@@ -39,7 +38,7 @@ def load_data(file_path):
 
 def train_model():
     """
-    Loads data, defines features, preprocesses, tunes with GridSearchCV, 
+    Loads data, defines features, preprocesses, tunes with lightweight GridSearchCV, 
     evaluates, and saves the final model and scaler.
     """
     df = load_data(DATA_FILES[0]) # Load the single specified file
@@ -76,6 +75,24 @@ def train_model():
 
         X = df[feature_cols]
         y = df[target_col]
+        
+        # --- Lightweight Feature Engineering ---
+        # Add only the most important engineered features
+        
+        # Calculate symptom score (sum of all symptoms)
+        symptom_cols = ['Chronic_Cough', 'Shortness_of_Breath', 'Wheezing', 
+                        'Sputum_Production', 'Respiratory_Infections', 'Allergies']
+        X['Symptom_Score'] = X[symptom_cols].sum(axis=1)
+        
+        # Add most important interaction
+        X['Smoking_Air_Pollution'] = X['Smoking_History'] * X['Air_Pollution_Exposure']
+        
+        # Convert Gender to dummy variable
+        X = pd.get_dummies(X, columns=['Gender'], drop_first=True)
+        
+        # Update feature cols after engineering
+        feature_cols = X.columns.tolist()
+        print(f"Features after engineering: {feature_cols}")
 
         # --- Handle potential missing values (NaNs) --- 
         print("Checking for and handling potential missing values (NaNs)...")
@@ -91,7 +108,7 @@ def train_model():
         X = X.astype(float)
         y = y.astype(int)
 
-        # --- Data Splitting --- 
+        # --- Data Splitting with Stratification --- 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
         print(f"Data split into training ({len(X_train)}) and testing ({len(X_test)}).")
         
@@ -100,29 +117,28 @@ def train_model():
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
-        print(f"Saving the scaler object to {SCALER_FILE}...")
-        joblib.dump(scaler, SCALER_FILE)
-
-        # --- Hyperparameter Tuning with GridSearchCV --- 
-        print("\nStarting GridSearchCV for RandomForestClassifier...")
-        print("(This may take several minutes depending on hardware and grid size)")
+        
+        # --- Lightweight Hyperparameter Tuning --- 
+        print("\nStarting lightweight GridSearchCV...")
         start_time = time.time()
         
+        # Simplified parameter grid with fewer options
         param_grid = {
-            'n_estimators': [100, 200, 300],
-            'max_depth': [5, 10, 15, None],
-            'min_samples_split': [2, 5, 10],
-            'min_samples_leaf': [1, 3, 5],
+            'n_estimators': [100, 200],
+            'max_depth': [10, None],
+            'min_samples_split': [5],
             'class_weight': ['balanced']
         }
         
-        # Changed scoring to 'f1'
-        grid_search = GridSearchCV(estimator=RandomForestClassifier(random_state=42), 
-                                 param_grid=param_grid, 
-                                 cv=5, 
-                                 n_jobs=-1, 
-                                 scoring='f1', # Optimize for F1 score
-                                 verbose=1)
+        # Use 3-fold CV instead of 5 for speed
+        grid_search = GridSearchCV(
+            estimator=RandomForestClassifier(random_state=42), 
+            param_grid=param_grid, 
+            cv=3, 
+            n_jobs=-1, 
+            scoring='roc_auc',
+            verbose=1
+        )
         
         grid_search.fit(X_train_scaled, y_train)
         
@@ -130,16 +146,21 @@ def train_model():
         print(f"GridSearchCV finished in {end_time - start_time:.2f} seconds.")
         
         best_model = grid_search.best_estimator_
-        print(f"\nBest parameters found by GridSearchCV (optimized for F1-score): {grid_search.best_params_}")
-        print(f"Best cross-validation F1-score: {grid_search.best_score_:.4f}")
+        print(f"\nBest parameters found by GridSearchCV: {grid_search.best_params_}")
+        print(f"Best cross-validation AUC: {grid_search.best_score_:.4f}")
 
         # --- Evaluating Best Model on Test Set --- 
         print("\n--- Evaluating Best Model on Test Set ---")
         y_pred = best_model.predict(X_test_scaled)
+        y_pred_proba = best_model.predict_proba(X_test_scaled)[:, 1]
+        
         accuracy = accuracy_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred) # Calculate F1 score (binary average)
+        f1 = f1_score(y_test, y_pred)
+        auc = roc_auc_score(y_test, y_pred_proba)
+        
         print(f"Accuracy on Test Set: {accuracy:.4f}")
-        print(f"F1-Score on Test Set: {f1:.4f}") # Print F1 score
+        print(f"F1-Score on Test Set: {f1:.4f}")
+        print(f"ROC-AUC on Test Set: {auc:.4f}")
         
         print("\nClassification Report on Test Set:")
         try:
@@ -148,10 +169,28 @@ def train_model():
         except Exception as report_e:
             print(f"Could not generate classification report: {report_e}")
             print(classification_report(y_test, y_pred))
+        
+        # --- Feature Importance Analysis ---
+        print("\nFeature Importance Analysis:")
+        importances = best_model.feature_importances_
+        indices = np.argsort(importances)[::-1]
+        
+        print("Feature ranking:")
+        for i, idx in enumerate(indices[:10]):  # Show top 10
+            print(f"{i+1}. {feature_cols[idx]} ({importances[idx]:.4f})")
 
-        # --- Save the Best Model --- 
-        print(f"\nSaving the best trained model to {MODEL_FILE}...")
-        joblib.dump(best_model, MODEL_FILE) # Save the best model found
+        # --- Save the final model and scaler ---
+        print(f"\nSaving the scaler object to {SCALER_FILE}...")
+        joblib.dump(scaler, SCALER_FILE)
+        
+        print(f"Saving the best trained model to {MODEL_FILE}...")
+        joblib.dump(best_model, MODEL_FILE)
+        
+        # Also save feature columns list for prediction
+        feature_cols_file = 'feature_cols.pkl'
+        joblib.dump(feature_cols, feature_cols_file)
+        print(f"Saving feature columns to {feature_cols_file}")
+        
         print(f"Model successfully saved to {MODEL_FILE}")
 
     except Exception as e:
