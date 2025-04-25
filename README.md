@@ -22,8 +22,9 @@ This application has been optimized to run on lower-performance computers with:
 2.  **Get the Code:**
     *   Clone the repository (if available):
         ```bash
-        git clone <repository_url>
-        cd copd__proj 
+        git clone https://github.com/IqbalHere/RESPIROGUIDE.git
+        cd RESPIROGUIDE
+        
         ```
     *   Or, ensure all project files (`app.py`, `generate_model.py`, `copd_15_features_1000_rows.xlsx`, `requirements.txt`, `static/`, `templates/`) are in a single directory.
 
