@@ -17,7 +17,9 @@ feature_cols = None
 if os.path.exists(MODEL_FILE):
     try:
         model = joblib.load(MODEL_FILE)
-        print(f"Model '{MODEL_FILE}' loaded successfully.")
+        print(f"\nDebug - Model '{MODEL_FILE}' loaded successfully.")
+        print(f"Debug - Model type: {type(model)}")
+        print(f"Debug - Model parameters: {model.get_params()}")
     except Exception as e:
         print(f"Error loading model '{MODEL_FILE}': {e}")
 else:
@@ -53,14 +55,14 @@ if model is None:
 
 # Base features received from the form
 base_feature_order = [
-    'Age', 'Gender', 'Smoking_History', 
+    'Age', 'Gender', 'Smoking_History', 'Air_Pollution_Exposure', 
     'Family_History', 'Chronic_Cough', 'Shortness_of_Breath', 'Wheezing', 
     'Sputum_Production', 'BMI', 'Physical_Activity', 'Occupational_Exposure', 
     'Respiratory_Infections', 'Allergies', 'Medication_Use'
 ]
 
 # Define risk factors and symptoms for clinical validation
-risk_factors = ['Smoking_History', 'Family_History', 'Occupational_Exposure']
+risk_factors = ['Smoking_History', 'Air_Pollution_Exposure', 'Family_History', 'Occupational_Exposure']
 symptoms = ['Chronic_Cough', 'Shortness_of_Breath', 'Wheezing', 'Sputum_Production', 'Respiratory_Infections', 'Allergies']
 
 @app.route('/')
@@ -86,23 +88,35 @@ def predict():
                  else:
                       return jsonify({'error': f'Missing input value for {feature}'}), 400
             try:
-                 base_features[feature] = float(value)
+                # For Yes/No fields, convert to 1/0
+                if value.lower() in ['yes', 'no']:
+                    base_features[feature] = 1.0 if value.lower() == 'yes' else 0.0
+                else:
+                    base_features[feature] = float(value)
             except ValueError:
                 return jsonify({'error': f'Invalid input value for {feature}: \'{value}\'. Please enter a valid number or selection.'}), 400
         
         # Create DataFrame with base features
         input_df = pd.DataFrame([base_features])
+        print("\nDebug - Input DataFrame:")
+        print(input_df)
         
         # --- Clinical validation check ---
         # Count risk factors and symptoms
         risk_factor_count = sum(1 for factor in risk_factors if factor in input_df.columns and input_df[factor].iloc[0] == 1)
         symptom_count = sum(1 for symptom in symptoms if symptom in input_df.columns and input_df[symptom].iloc[0] == 1)
+        print(f"\nDebug - Risk Factor Count: {risk_factor_count}")
+        print(f"Debug - Symptom Count: {symptom_count}")
         
         # --- Apply only the lightweight feature engineering ---
         # Calculate symptom score
         symptom_cols = ['Chronic_Cough', 'Shortness_of_Breath', 'Wheezing', 
                        'Sputum_Production', 'Respiratory_Infections', 'Allergies']
         input_df['Symptom_Score'] = input_df[symptom_cols].sum(axis=1)
+        print(f"\nDebug - Symptom Score: {input_df['Symptom_Score'].iloc[0]}")
+        
+        # Add the single interaction term
+        input_df['Smoking_Air_Pollution'] = input_df['Smoking_History'] * input_df['Air_Pollution_Exposure']
         
         # Convert categorical features
         input_df = pd.get_dummies(input_df, columns=['Gender'], drop_first=True)
@@ -117,6 +131,9 @@ def predict():
             # Reorder columns to match training data
             input_df = input_df[feature_cols]
         
+        print("\nDebug - Final DataFrame before scaling:")
+        print(input_df)
+        
         # Reshape and scale features
         features_array = input_df.values
         scaled_features = scaler.transform(features_array)
@@ -124,6 +141,8 @@ def predict():
         # Get model prediction and probability
         prediction = model.predict(scaled_features)[0]
         probability = model.predict_proba(scaled_features)[0][1]
+        print(f"\nDebug - Raw Prediction: {prediction}")
+        print(f"Debug - Raw Probability: {probability}")
         
         # --- Clinical override for edge cases ---
         # If no symptoms and no risk factors, override to negative
@@ -131,10 +150,15 @@ def predict():
             prediction = 0
             probability = max(0.05, min(probability, 0.15))  # Cap probability between 5-15%
             clinical_override = True
-        # If many symptoms but model says negative with very low probability
-        elif symptom_count >= 3 and prediction == 0 and probability < 0.2:
+        # If many symptoms but model says negative with low confidence
+        elif symptom_count >= 3 and prediction == 0 and probability < 0.5:  # Changed from 0.2 to 0.5
             prediction = 1
-            probability = max(0.6, probability)
+            probability = max(0.7, probability)  # Increased from 0.6 to 0.7
+            clinical_override = True
+        # If all symptoms are present, strongly override to positive
+        elif symptom_count == len(symptoms):
+            prediction = 1
+            probability = 0.95  # Very high confidence
             clinical_override = True
         else:
             clinical_override = False
