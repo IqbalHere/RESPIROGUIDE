@@ -170,7 +170,6 @@ def predict():
             
         # Format output
         prediction_text = "Positive" if prediction == 1 else "Negative"
-        probability_percentage_text = f"{probability * 100:.2f}%"
         
         # Simple confidence level
         confidence = "High" if probability > 0.75 or probability < 0.25 else "Medium"
@@ -178,9 +177,6 @@ def predict():
         # Return response
         response_data = {
             'prediction_status': prediction_text,
-            'probability': probability,
-            'probability_text': probability_percentage_text,
-            'confidence': confidence,
             'symptom_count': symptom_count,
             'risk_factor_count': risk_factor_count,
             'clinical_override': clinical_override

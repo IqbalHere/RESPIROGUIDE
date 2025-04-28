@@ -48,8 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Format the output with the new message
                     resultDiv.innerHTML = `
                         <strong>COPD Prediction Result</strong><br>
-                        Based on the provided data, the prediction is: ${statusMessage}<br>
-                        Probability: ${result.probability_text}
+                        Based on the provided data, the prediction is: ${statusMessage}
                     `;
                     resultDiv.classList.remove('error');
                 } else {
