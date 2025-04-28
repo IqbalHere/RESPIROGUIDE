@@ -145,13 +145,18 @@ def predict():
         print(f"Debug - Raw Probability: {probability}")
         
         # --- Clinical override for edge cases ---
+        # If majority of symptoms are No, override to negative
+        if symptom_count < len(symptoms) / 2:  # Less than half of symptoms present
+            prediction = 0
+            probability = max(0.05, min(probability, 0.15))  # Low probability
+            clinical_override = True
         # If no symptoms and no risk factors, override to negative
-        if symptom_count == 0 and risk_factor_count == 0:
+        elif symptom_count == 0 and risk_factor_count == 0:
             prediction = 0
             probability = max(0.05, min(probability, 0.15))  # Cap probability between 5-15%
             clinical_override = True
         # If many symptoms but model says negative with low confidence
-        elif symptom_count >= 3 and prediction == 0 and probability < 0.5:  # Changed from 0.2 to 0.5
+        elif symptom_count >= 3 and prediction == 0 and probability < 0.5:
             prediction = 1
             probability = max(0.7, probability)  # Increased from 0.6 to 0.7
             clinical_override = True
