@@ -53,14 +53,14 @@ if model is None:
 
 # Base features received from the form
 base_feature_order = [
-    'Age', 'Gender', 'Smoking_History', 'Air_Pollution_Exposure', 
+    'Age', 'Gender', 'Smoking_History', 
     'Family_History', 'Chronic_Cough', 'Shortness_of_Breath', 'Wheezing', 
     'Sputum_Production', 'BMI', 'Physical_Activity', 'Occupational_Exposure', 
     'Respiratory_Infections', 'Allergies', 'Medication_Use'
 ]
 
 # Define risk factors and symptoms for clinical validation
-risk_factors = ['Smoking_History', 'Air_Pollution_Exposure', 'Family_History', 'Occupational_Exposure']
+risk_factors = ['Smoking_History', 'Family_History', 'Occupational_Exposure']
 symptoms = ['Chronic_Cough', 'Shortness_of_Breath', 'Wheezing', 'Sputum_Production', 'Respiratory_Infections', 'Allergies']
 
 @app.route('/')
@@ -103,9 +103,6 @@ def predict():
         symptom_cols = ['Chronic_Cough', 'Shortness_of_Breath', 'Wheezing', 
                        'Sputum_Production', 'Respiratory_Infections', 'Allergies']
         input_df['Symptom_Score'] = input_df[symptom_cols].sum(axis=1)
-        
-        # Add the single interaction term
-        input_df['Smoking_Air_Pollution'] = input_df['Smoking_History'] * input_df['Air_Pollution_Exposure']
         
         # Convert categorical features
         input_df = pd.get_dummies(input_df, columns=['Gender'], drop_first=True)

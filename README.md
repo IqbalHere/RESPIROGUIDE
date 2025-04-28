@@ -95,7 +95,7 @@ The application uses a combination of factors to determine COPD risk:
    - These clinical overrides ensure medically sound predictions in edge cases
 
 3. **Decision Factors**: The model considers both risk factors and symptoms:
-   - **Risk Factors**: Smoking History, Air Pollution Exposure, Family History, Occupational Exposure
+   - **Risk Factors**: Smoking History, Family History, Occupational Exposure
    - **Key Symptoms**: Chronic Cough, Shortness of Breath, Wheezing, Sputum Production, Respiratory Infections, Allergies
 
 This hybrid approach combines the statistical power of machine learning with clinical knowledge to provide more accurate predictions.
